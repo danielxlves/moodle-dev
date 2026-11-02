@@ -253,5 +253,3 @@ Para acessar:
 
 - **Usuário:** `admin`
 - **Senha:** `AdminMoodle@12345`
-
-**Observação:** o projeto foi preparado para automatizar a instalação, mas ainda não foi validado de ponta a ponta em uma máquina com Docker.
