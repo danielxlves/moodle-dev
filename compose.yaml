@@ -1,0 +1,70 @@
+# Moodle 5.3 LTS - ambiente local para TSI.
+# Intencionalmente hardcoded: NAO usar em producao ou expor na internet.
+name: moodle-tsi
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: moodle
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: "MoodleDB@12345"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodle -d moodle"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - interna
+
+  moodle:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html/public
+    volumes:
+      - ./moodle:/var/www/html
+      - moodledata:/var/www/moodledata
+    entrypoint: ["/bin/bash", "/usr/local/bin/moodle-bootstrap.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/config.php && bash -c 'echo > /dev/tcp/127.0.0.1/80'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
+    networks:
+      - interna
+
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      moodle:
+        condition: service_healthy
+    volumes:
+      - ./moodle:/var/www/html
+      - moodledata:/var/www/moodledata
+    entrypoint: ["/bin/bash", "/usr/local/bin/moodle-cron.sh"]
+    networks:
+      - interna
+
+volumes:
+  postgres_data:
+  moodledata:
+
+networks:
+  interna:
+    driver: bridge
